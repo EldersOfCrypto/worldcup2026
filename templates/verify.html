@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Get Started — WC 2026{% endblock %}
+{% block content %}
+
+<div class="text-center py-4">
+  <h2 class="page-title mb-1">Get Started</h2>
+  <p class="text-muted mb-5">Complete these steps to unlock predictions</p>
+
+  <div class="verify-card mx-auto">
+
+    <!-- STEP 1: Discord -->
+    <div class="vstep vstep-done mb-4">
+      <div class="vstep-icon done">✓</div>
+      <div class="vstep-body">
+        <div class="vstep-title">Discord connected</div>
+        <div class="vstep-sub">Logged in as <strong>{{ current_user['username'] }}</strong></div>
+      </div>
+    </div>
+
+    <div class="vstep-line"></div>
+
+    <!-- STEP 2: Connect X -->
+    <div class="vstep {% if x_connected %}vstep-done{% else %}vstep-active{% endif %} my-4">
+      <div class="vstep-icon {% if x_connected %}done{% else %}active{% endif %}">
+        {% if x_connected %}✓{% else %}2{% endif %}
+      </div>
+      <div class="vstep-body">
+        <div class="vstep-title">Connect X account</div>
+        {% if x_connected %}
+          <div class="vstep-sub">Connected as <strong>@{{ x_username }}</strong></div>
+        {% else %}
+          <div class="vstep-sub mb-2">Link your X so we can verify your repost</div>
+          <a href="{{ url_for('x_login') }}" class="btn btn-x btn-sm px-3">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="white" class="me-1"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            Connect X
+          </a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="vstep-line"></div>
+
+    <!-- STEP 3: Repost -->
+    <div class="vstep {% if not x_connected %}vstep-inactive{% else %}vstep-active{% endif %} mt-4">
+      <div class="vstep-icon {% if not x_connected %}inactive{% else %}active{% endif %}" id="step3-icon">
+        {% if x_connected %}
+          <span class="spinner-border spinner-border-sm text-warning" role="status"></span>
+        {% else %}
+          3
+        {% endif %}
+      </div>
+      <div class="vstep-body">
+        <div class="vstep-title" style="{% if not x_connected %}opacity:0.4{% endif %}">Repost our tweet</div>
+        {% if x_connected %}
+          <div class="vstep-sub mb-2">Repost the tweet — we'll detect it automatically</div>
+          {% if tweet_id %}
+            <a href="https://x.com/i/web/status/{{ tweet_id }}" target="_blank"
+               class="btn btn-dark border-secondary btn-sm px-3">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="white" class="me-1"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+              Open Tweet
+            </a>
+          {% endif %}
+          <div class="d-flex align-items-center gap-2 mt-2 flex-wrap">
+              <button id="check-btn" onclick="doCheck()" class="btn btn-gold btn-sm px-3">✓ I've reposted — Check Now</button>
+              <span id="poll-status" class="text-muted small"></span>
+            </div>
+        {% else %}
+          <div class="vstep-sub" style="opacity:0.4">Complete step 2 first</div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{% if x_connected %}
+<script>
+  var checking = false;
+
+  function doCheck() {
+    if (checking) return;
+    checking = true;
+    document.getElementById('check-btn').disabled = true;
+    document.getElementById('poll-status').textContent = 'Checking…';
+
+    fetch('/check-retweet')
+      .then(r => r.json())
+      .then(data => {
+        if (data.verified) {
+          document.getElementById('poll-status').textContent = '✅ Verified! Redirecting…';
+          document.getElementById('step3-icon').innerHTML = '✓';
+          document.getElementById('step3-icon').className = 'vstep-icon done';
+          setTimeout(() => window.location.href = '/predict', 600);
+        } else {
+          document.getElementById('poll-status').textContent = 'Not detected yet — repost the tweet then click Check.';
+          document.getElementById('check-btn').disabled = false;
+          checking = false;
+        }
+      })
+      .catch(() => {
+        document.getElementById('poll-status').textContent = 'Error — try again in a moment.';
+        document.getElementById('check-btn').disabled = false;
+        checking = false;
+      });
+  }
+
+  // Auto-check once on load, then let user control
+  setTimeout(doCheck, 1500);
+</script>
+{% endif %}
+{% endblock %}

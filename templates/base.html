@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}World Cup 2026 Predictor{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body>
+
+<!-- Elders Realm ordinals — hidden Easter eggs -->
+<div class="ordinals-bg" aria-hidden="true">
+  <img src="{{ url_for('static', filename='ordinals/god1.png') }}" class="ord ord-tl">
+  <img src="{{ url_for('static', filename='ordinals/god2.png') }}" class="ord ord-tr">
+  <img src="{{ url_for('static', filename='ordinals/sprite1.png') }}" class="ord ord-ml">
+  <img src="{{ url_for('static', filename='ordinals/sprite2.png') }}" class="ord ord-mr">
+  <img src="{{ url_for('static', filename='ordinals/god3.png') }}" class="ord ord-bl">
+  <img src="{{ url_for('static', filename='ordinals/sprite3.png') }}" class="ord ord-bm">
+  <img src="{{ url_for('static', filename='ordinals/god4.png') }}" class="ord ord-br">
+  <img src="{{ url_for('static', filename='ordinals/sprite4.png') }}" class="ord ord-cx">
+</div>
+
+<nav class="navbar navbar-expand-lg">
+  <div class="container">
+    <a class="navbar-brand" href="{{ url_for('index') }}">
+      ⚽ <span>WC 2026</span>
+    </a>
+    <a href="https://x.com/CryptoElders" target="_blank" class="sponsor-badge me-3">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="me-1"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      Sponsored by <strong>@CryptoElders</strong>
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+      <i class="fas fa-bars text-white"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="nav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'predict' %}active{% endif %}"
+             href="{{ url_for('predict') }}">
+            <i class="fas fa-futbol me-1"></i>Predict
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'leaderboard' %}active{% endif %}"
+             href="{{ url_for('leaderboard') }}">
+            <i class="fas fa-trophy me-1"></i>Leaderboard
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'results' %}active{% endif %}"
+             href="{{ url_for('results') }}">
+            <i class="fas fa-flag-checkered me-1"></i>Results
+          </a>
+        </li>
+      </ul>
+      <div class="d-flex align-items-center gap-3">
+        {% if current_user %}
+          <span class="user-badge">
+            <img src="{{ avatar_url(current_user['discord_id'], current_user['avatar']) }}"
+                 class="discord-avatar me-2" alt="">
+            {{ current_user['username'] }}
+          </span>
+          <span class="points-badge">
+            <i class="fas fa-star me-1"></i>{{ current_user['total_points'] }} pts
+          </span>
+          <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light">Logout</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-4">
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      {% for msg in messages %}
+        <div class="alert alert-flash alert-dismissible fade show" role="alert">
+          {{ msg }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</div>
+
+<div class="sponsor-banner text-center py-3">
+  💰 Want to sponsor more rewards to this prediction game?
+  <a href="https://discord.gg/jx5Gt6eB6a" target="_blank" class="ms-2 sponsor-banner-link">
+    Open a ticket on our Discord →
+  </a>
+</div>
+
+<footer class="text-center py-4 mt-5">
+  <a href="https://x.com/CryptoElders" target="_blank" class="footer-sponsor d-block mb-2">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="me-1"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    Proudly sponsored by <strong>@CryptoElders</strong>
+  </a>
+  <small class="text-muted">⚽ World Cup 2026 Predictor · Data by football-data.org · All times UTC</small>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

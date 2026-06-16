@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Predict — WC 2026{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="page-title mb-0">⚽ Upcoming Matches</h2>
+  <a href="{{ url_for('leaderboard') }}" class="btn btn-sm btn-outline-gold">
+    <i class="fas fa-trophy me-1"></i>Leaderboard
+  </a>
+</div>
+
+{% if not grouped %}
+  <div class="empty-state text-center py-5">
+    <div style="font-size:3rem">🎉</div>
+    <h5 class="mt-3">No upcoming matches right now</h5>
+    <p class="text-muted">Check the <a href="{{ url_for('results') }}">Results</a> page</p>
+  </div>
+{% endif %}
+
+{% for day, matches in grouped.items() %}
+<div class="day-section mb-5">
+  <div class="day-header mb-3">
+    <i class="fas fa-calendar-day me-2"></i>{{ day }}
+  </div>
+
+  {% for m in matches %}
+  <div class="match-card mb-3 {% if m.locked %}locked{% endif %}">
+    <div class="match-header d-flex justify-content-between align-items-center">
+      <span class="stage-label">
+        {% if m.group_name %}{{ m.group_name | fmt_group }}{% else %}{{ m.stage | fmt_stage }}{% endif %}
+      </span>
+      <span class="kickoff-time">
+        <i class="fas fa-clock me-1"></i>{{ m.kickoff_utc | fmt_time }}
+        {% if m.status == 'IN_PLAY' %}
+          <span class="badge badge-live ms-2">LIVE</span>
+        {% elif m.locked %}
+          <span class="badge badge-locked ms-2">🔒 Locked</span>
+        {% else %}
+          <span class="badge badge-open ms-2">{{ m.time_until_lock }}</span>
+        {% endif %}
+      </span>
+    </div>
+
+    <div class="match-body">
+      <div class="teams-row">
+        <!-- Home Team -->
+        <div class="team home-team">
+          {% if m.home_crest %}
+            <img src="{{ m.home_crest }}" alt="{{ m.home_team }}" class="team-crest">
+          {% endif %}
+          <span class="team-name">{{ m.home_team }}</span>
+        </div>
+
+        <!-- Score Inputs / Current Prediction -->
+        <div class="score-section">
+          {% if m.locked %}
+            {% if m.pred_home is not none %}
+              <div class="prediction-display">
+                <span class="pred-score">{{ m.pred_home }}</span>
+                <span class="pred-sep">–</span>
+                <span class="pred-score">{{ m.pred_away }}</span>
+              </div>
+              <small class="text-muted">Your prediction</small>
+            {% else %}
+              <div class="no-pred">—</div>
+              <small class="text-muted">No prediction</small>
+            {% endif %}
+          {% else %}
+            <form action="{{ url_for('submit_prediction', match_id=m.id) }}" method="POST" class="score-form">
+              <input type="number" name="home_score" class="score-input"
+                     value="{{ m.pred_home if m.pred_home is not none else '' }}"
+                     min="0" max="20" placeholder="0" required>
+              <span class="vs-sep">–</span>
+              <input type="number" name="away_score" class="score-input"
+                     value="{{ m.pred_away if m.pred_away is not none else '' }}"
+                     min="0" max="20" placeholder="0" required>
+              <button type="submit" class="btn btn-gold ms-3 px-3">
+                {% if m.pred_home is not none %}
+                  <i class="fas fa-sync-alt me-1"></i>Update
+                {% else %}
+                  <i class="fas fa-check me-1"></i>Save
+                {% endif %}
+              </button>
+            </form>
+            {% if m.pred_home is not none %}
+              <small class="saved-label">✓ Saved · Click to update</small>
+            {% endif %}
+          {% endif %}
+        </div>
+
+        <!-- Away Team -->
+        <div class="team away-team">
+          <span class="team-name">{{ m.away_team }}</span>
+          {% if m.away_crest %}
+            <img src="{{ m.away_crest }}" alt="{{ m.away_team }}" class="team-crest">
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+
+{% endblock %}

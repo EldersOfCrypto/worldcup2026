@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Leaderboard — WC 2026{% endblock %}
+{% block content %}
+
+<h2 class="page-title mb-4">🏆 Leaderboard</h2>
+
+<div class="table-card">
+  <table class="table table-dark table-hover mb-0">
+    <thead>
+      <tr>
+        <th width="60">Rank</th>
+        <th>Player</th>
+        <th class="text-center">Points</th>
+        <th class="text-center d-none d-md-table-cell">Exact Scores</th>
+        <th class="text-center d-none d-md-table-cell">Winners</th>
+        <th class="text-center d-none d-md-table-cell">Predictions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      {% set rank = loop.index %}
+      <tr class="{% if current_user and u['username'] == current_user['username'] %}highlight-row{% endif %}">
+        <td>
+          {% if rank == 1 %}<span class="rank-medal">🥇</span>
+          {% elif rank == 2 %}<span class="rank-medal">🥈</span>
+          {% elif rank == 3 %}<span class="rank-medal">🥉</span>
+          {% else %}<span class="rank-num">{{ rank }}</span>
+          {% endif %}
+        </td>
+        <td>
+          <i class="fab fa-discord me-1 text-muted"></i>
+          <strong>{{ u['username'] }}</strong>
+          {% if current_user and u['username'] == current_user['username'] %}
+            <span class="badge badge-you ms-1">You</span>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          <span class="points-big">{{ u['total_points'] }}</span>
+        </td>
+        <td class="text-center d-none d-md-table-cell">
+          <span class="badge badge-exact">🎯 {{ u['exact_scores'] }}</span>
+        </td>
+        <td class="text-center d-none d-md-table-cell">
+          <span class="badge badge-winner">✓ {{ u['correct_winners'] }}</span>
+        </td>
+        <td class="text-center d-none d-md-table-cell text-muted">
+          {{ u['graded'] }} / {{ u['total_preds'] }}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="text-center text-muted py-4">
+          No players yet — be the first to <a href="{{ url_for('index') }}">join</a>!
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="points-legend mt-4">
+  <h6 class="mb-2">Points System</h6>
+  <div class="d-flex gap-3 flex-wrap">
+    <span><span class="badge badge-exact">🎯 3 pts</span> Exact score</span>
+    <span><span class="badge badge-winner">✓ 1 pt</span> Correct winner / draw</span>
+    <span><span class="badge badge-zero">✗ 0 pts</span> Wrong</span>
+  </div>
+</div>
+
+{% endblock %}

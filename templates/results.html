@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Results — WC 2026{% endblock %}
+{% block content %}
+
+<h2 class="page-title mb-4">🏁 Match Results</h2>
+
+{% if not data %}
+  <div class="empty-state text-center py-5">
+    <div style="font-size:3rem">⏳</div>
+    <h5 class="mt-3">No finished matches yet</h5>
+    <p class="text-muted">Check back after the first games!</p>
+  </div>
+{% endif %}
+
+{% for item in data %}
+{% set m = item.match %}
+{% set preds = item.predictions %}
+<div class="result-card mb-4">
+  <div class="result-header d-flex justify-content-between align-items-center">
+    <span class="stage-label">
+      {% if m.group_name %}{{ m.group_name | fmt_group }}{% else %}{{ m.stage | fmt_stage }}{% endif %}
+      · {{ m.kickoff_utc | fmt_date }}
+    </span>
+    <span class="text-muted small">{{ m.kickoff_utc | fmt_time }}</span>
+  </div>
+
+  <div class="result-score-row">
+    <div class="result-team">
+      {% if m.home_crest %}
+        <img src="{{ m.home_crest }}" alt="" class="team-crest-sm">
+      {% endif %}
+      <span>{{ m.home_team }}</span>
+    </div>
+    <div class="final-score">
+      <span>{{ m.home_score }}</span>
+      <span class="score-sep">–</span>
+      <span>{{ m.away_score }}</span>
+    </div>
+    <div class="result-team away">
+      <span>{{ m.away_team }}</span>
+      {% if m.away_crest %}
+        <img src="{{ m.away_crest }}" alt="" class="team-crest-sm">
+      {% endif %}
+    </div>
+  </div>
+
+  {% if preds %}
+  <div class="predictions-list mt-3">
+    <table class="table table-dark table-sm mb-0">
+      <thead>
+        <tr>
+          <th>Player</th>
+          <th class="text-center">Prediction</th>
+          <th class="text-center">Points</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in preds %}
+        <tr class="{% if current_user and p['username'] == current_user['username'] %}highlight-row{% endif %}">
+          <td>
+            <i class="fab fa-discord me-1 text-muted"></i>{{ p['username'] }}
+            {% if current_user and p['username'] == current_user['username'] %}
+              <span class="badge badge-you ms-1">You</span>
+            {% endif %}
+          </td>
+          <td class="text-center">{{ p['home_score'] }} – {{ p['away_score'] }}</td>
+          <td class="text-center">
+            {% if p['points_earned'] == 3 %}
+              <span class="badge badge-exact">🎯 3 pts</span>
+            {% elif p['points_earned'] == 1 %}
+              <span class="badge badge-winner">✓ 1 pt</span>
+            {% elif p['points_earned'] == 0 %}
+              <span class="badge badge-zero">✗ 0 pts</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted small mt-2 mb-0 px-1">No predictions were submitted for this match.</p>
+  {% endif %}
+</div>
+{% endfor %}
+
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}World Cup 2026 Predictor — Elders of Crypto{% endblock %}
+{% block content %}
+
+<!-- Hero -->
+<div class="hero text-center py-5">
+
+  <div class="hero-presented mb-2">
+    <span class="hero-presented-text">✦ Presented by</span>
+    <a href="https://x.com/CryptoElders" target="_blank" class="hero-presented-link">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" class="me-1"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      Elders of Crypto
+    </a>
+    <span class="hero-presented-text">✦</span>
+  </div>
+
+  <div class="hero-badge mb-4">THE FIRST FREE-TO-PLAY PREDICTION GAME WITH BTC REWARDS</div>
+
+  <div class="trophy-icon mb-3" style="font-size:5rem">🏆</div>
+
+  <h1 class="hero-title">World Cup 2026</h1>
+  <p class="hero-sub">Community Prediction Game</p>
+
+  <div class="hero-prize my-4">
+    <span class="prize-amount">₿ 0.015 BTC IN REWARDS</span>
+    <div class="prize-divider"></div>
+    <span class="prize-free">🎉 FREE TO PLAY</span>
+  </div>
+
+  <div class="login-card mx-auto mt-4">
+    <p class="login-welcome mb-1">Welcome, future champion</p>
+    <p class="text-muted mb-4" style="font-size:0.85rem">
+      Sign in with Discord to claim your spot
+    </p>
+    <a href="{{ url_for('discord_login') }}" class="btn btn-discord btn-lg px-5 w-100">
+      <svg width="20" height="20" viewBox="0 0 71 55" fill="white" class="me-2" style="vertical-align:middle">
+        <path d="M60.1 4.9A58.6 58.6 0 0 0 45.5.4a40.8 40.8 0 0 0-1.8 3.7 54.2 54.2 0 0 0-16.3 0A39 39 0 0 0 25.6.4 58.5 58.5 0 0 0 11 4.9C1.6 18.8-1 32.4.3 45.8a59 59 0 0 0 18 9.1 44.6 44.6 0 0 0 3.8-6.2 38.4 38.4 0 0 1-6-2.9l1.5-1.1a42.2 42.2 0 0 0 36 0l1.5 1.1a38.3 38.3 0 0 1-6 2.9 44.4 44.4 0 0 0 3.8 6.2 58.8 58.8 0 0 0 18-9.1C72 30.6 68.2 17 60.1 4.9ZM23.7 37.8c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.2 6.4 7.2c0 4-2.8 7.2-6.4 7.2Zm23.6 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.2 6.4 7.2c0 4-2.8 7.2-6.4 7.2Z"/>
+      </svg>
+      Enter with Discord
+    </a>
+    <p class="text-muted mt-3 mb-0" style="font-size:0.8rem">
+      Your Discord profile is used automatically — no account creation needed
+    </p>
+  </div>
+</div>
+
+<!-- Info cards -->
+<div class="row g-4 mt-2 text-center">
+  <div class="col-md-4">
+    <div class="info-card">
+      <div class="info-icon">⚽</div>
+      <h6>Predict Every Match</h6>
+      <p>Submit your score prediction for every World Cup match before kickoff locks</p>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="info-card">
+      <div class="info-icon">₿</div>
+      <h6>Win Bitcoin</h6>
+      <p>0.015 BTC in rewards — completely free to enter, no buy-in required</p>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="info-card">
+      <div class="info-icon">🏆</div>
+      <h6>Live Leaderboard</h6>
+      <p>3 pts exact score · 1 pt correct winner · Updated after every match</p>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

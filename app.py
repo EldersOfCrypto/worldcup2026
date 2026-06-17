@@ -565,7 +565,31 @@ def admin():
     verified = cur.fetchone()["c"]
     cur.close()
     conn.close()
-    return render_template("admin.html", authed=True, users=users, total=total, verified=verified)
+    return render_template("admin.html", authed=True, users=users, total=total, verified=verified,
+                           points_msg=None, points_ok=False)
+
+@app.route("/admin/give-points", methods=["POST"])
+def admin_give_points():
+    if not session.get("admin"):
+        return redirect(url_for("admin"))
+    username = request.form.get("username", "").strip()
+    try:
+        pts = int(request.form.get("points", 0))
+    except ValueError:
+        pts = 0
+    conn = get_db()
+    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    user = db_fetchone(cur, "SELECT * FROM users WHERE LOWER(username)=LOWER(%s)", (username,))
+    if not user:
+        cur.close(); conn.close()
+        flash(f"User '{username}' not found.")
+        return redirect(url_for("admin"))
+    cur.execute("UPDATE users SET total_points = total_points + %s WHERE id=%s", (pts, user["id"]))
+    conn.commit()
+    new_pts = user["total_points"] + pts
+    cur.close(); conn.close()
+    flash(f"✅ Gave {pts:+d} pts to {user['username']} — now at {new_pts} pts.")
+    return redirect(url_for("admin"))
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

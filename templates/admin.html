@@ -24,6 +24,24 @@
   </div>
 </div>
 
+<div class="card mb-4" style="background:#161b22;border:1px solid #30363d;">
+  <div class="card-body">
+    <h6 class="mb-3">Give Bonus Points</h6>
+    <form method="POST" action="{{ url_for('admin_give_points') }}" class="d-flex gap-2 flex-wrap align-items-end">
+      <div>
+        <label class="form-label small text-muted mb-1">Username</label>
+        <input type="text" name="username" class="form-control login-input" placeholder="e.g. skn" required style="width:180px">
+      </div>
+      <div>
+        <label class="form-label small text-muted mb-1">Points</label>
+        <input type="number" name="points" class="form-control login-input" value="1" min="-100" max="100" required style="width:90px">
+      </div>
+      <button type="submit" class="btn btn-gold px-4">Add Points</button>
+    </form>
+    {% if points_msg %}<div class="mt-2 small {% if points_ok %}text-success{% else %}text-danger{% endif %}">{{ points_msg }}</div>{% endif %}
+  </div>
+</div>
+
 <div class="table-card">
   <table class="table table-dark mb-0">
     <thead>

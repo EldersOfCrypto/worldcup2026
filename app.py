@@ -429,5 +429,29 @@ def results():
     conn.close()
     return render_template("results.html", data=data)
 
+ADMIN_PASSWORD = "1235"
+
+@app.route("/admin", methods=["GET", "POST"])
+def admin():
+    if request.method == "POST":
+        if request.form.get("password") == ADMIN_PASSWORD:
+            session["admin"] = True
+        else:
+            return render_template("admin.html", error="Wrong password", authed=False)
+    if not session.get("admin"):
+        return render_template("admin.html", authed=False)
+    conn  = get_db()
+    users = conn.execute("""
+        SELECT u.*, COUNT(p.id) as total_preds
+        FROM users u
+        LEFT JOIN predictions p ON u.id = p.user_id
+        GROUP BY u.id
+        ORDER BY u.created_at DESC
+    """).fetchall()
+    total = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    verified = conn.execute("SELECT COUNT(*) FROM users WHERE x_verified=1").fetchone()[0]
+    conn.close()
+    return render_template("admin.html", authed=True, users=users, total=total, verified=verified)
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

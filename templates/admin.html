@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Admin{% endblock %}
+{% block content %}
+
+{% if not authed %}
+<div class="text-center py-5">
+  <div class="login-card mx-auto">
+    <h5 class="mb-4">Admin Access</h5>
+    <form method="POST">
+      <input type="password" name="password" class="form-control login-input mb-3" placeholder="Password" autofocus>
+      {% if error %}<div class="text-danger small mb-2">{{ error }}</div>{% endif %}
+      <button type="submit" class="btn btn-gold w-100">Enter</button>
+    </form>
+  </div>
+</div>
+
+{% else %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="page-title mb-0">Admin Panel</h2>
+  <div class="d-flex gap-3">
+    <div class="points-badge">👥 {{ total }} total users</div>
+    <div class="points-badge">✅ {{ verified }} verified</div>
+  </div>
+</div>
+
+<div class="table-card">
+  <table class="table table-dark mb-0">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Discord</th>
+        <th>X Account</th>
+        <th>Verified</th>
+        <th>Predictions</th>
+        <th>Points</th>
+        <th>Joined</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td class="rank-num">{{ loop.index }}</td>
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <img src="{{ avatar_url(u['discord_id'], u['avatar']) }}" class="discord-avatar">
+            {{ u['username'] }}
+          </div>
+        </td>
+        <td>{% if u['x_username'] %}<span class="text-muted">@{{ u['x_username'] }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td>{% if u['x_verified'] %}<span class="badge badge-winner px-2">✓ Yes</span>{% else %}<span class="badge badge-zero px-2">No</span>{% endif %}</td>
+        <td>{{ u['total_preds'] }}</td>
+        <td class="points-big">{{ u['total_points'] }}</td>
+        <td class="text-muted small">{{ u['created_at'][:10] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endif %}
+{% endblock %}

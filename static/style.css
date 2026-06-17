@@ -561,6 +561,50 @@ body {
 }
 .sponsor-banner-link:hover { text-decoration: underline; color: var(--gold); }
 
+/* ── Predictions Ticker ────────────────────────────────────────────────────── */
+.ticker-wrap {
+  background: rgba(245,166,35,0.06);
+  border-bottom: 1px solid rgba(245,166,35,0.15);
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  z-index: 9;
+  padding: 6px 0;
+}
+.ticker-track {
+  display: inline-block;
+  animation: ticker-scroll linear infinite;
+}
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 40px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.ticker-item strong { color: var(--text); }
+.ticker-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: #0d1117;
+}
+.ticker-pts {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+.ticker-pts.exact  { background: rgba(245,166,35,0.15); color: var(--gold); }
+.ticker-pts.winner { background: rgba(0,184,122,0.15);  color: var(--green); }
+
 /* ── Ordinals Easter Eggs ──────────────────────────────────────────────────── */
 .ordinals-bg { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
 .ord {

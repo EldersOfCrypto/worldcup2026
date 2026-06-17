@@ -461,6 +461,36 @@ def results():
     conn.close()
     return render_template("results.html", data=data)
 
+@app.route("/ticker")
+def ticker():
+    conn = get_db()
+    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    rows = db_fetchall(cur, """
+        SELECT u.username, u.ordinal_avatar,
+               p.home_score, p.away_score, p.points_earned,
+               m.home_team, m.away_team, m.home_score AS real_home, m.away_score AS real_away
+        FROM predictions p
+        JOIN users u ON p.user_id = u.id
+        JOIN matches m ON p.match_id = m.id
+        WHERE p.points_earned IS NOT NULL
+        ORDER BY p.submitted_at DESC
+        LIMIT 30
+    """)
+    cur.close()
+    conn.close()
+    items = []
+    for r in rows:
+        if r["points_earned"] == 3:
+            icon = "🎯"
+            text = f"{r['username']} predicted {r['home_team']} {r['home_score']}-{r['away_score']} {r['away_team']} exactly!"
+        elif r["points_earned"] == 1:
+            icon = "✓"
+            text = f"{r['username']} got the winner right in {r['home_team']} vs {r['away_team']}"
+        else:
+            continue
+        items.append({"icon": icon, "text": text, "pts": r["points_earned"], "avatar": r["ordinal_avatar"]})
+    return {"items": items}
+
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     if request.method == "POST":

@@ -55,7 +55,6 @@ fetch_and_update_matches()
 
 scheduler = BackgroundScheduler(daemon=True)
 scheduler.add_job(fetch_and_update_matches, "interval", minutes=5)
-scheduler.add_job(send_daily_leaderboard, "cron", hour=20, minute=0)
 scheduler.start()
 
 # ── Template filters ──────────────────────────────────────────────────────────
@@ -168,6 +167,8 @@ def send_daily_leaderboard():
         _send_discord_webhook_app("**📊 Daily Leaderboard — WC 2026**\n" + "\n".join(lines))
     except Exception as e:
         print(f"[Webhook] leaderboard error: {e}")
+
+scheduler.add_job(send_daily_leaderboard, "cron", hour=20, minute=0)
 
 # ── Discord OAuth ─────────────────────────────────────────────────────────────
 @app.route("/discord-login")

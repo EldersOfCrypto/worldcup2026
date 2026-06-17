@@ -665,9 +665,9 @@ def ticker():
         FROM predictions p
         JOIN users u ON p.user_id = u.id
         JOIN matches m ON p.match_id = m.id
-        WHERE m.status NOT IN ('FINISHED', 'IN_PLAY')
-          AND m.kickoff_utc >= %s
-          AND m.kickoff_utc <= %s
+        WHERE m.status IN ('TIMED', 'SCHEDULED')
+          AND m.kickoff_utc::timestamptz >= %s
+          AND m.kickoff_utc::timestamptz <= %s
         ORDER BY m.kickoff_utc ASC, p.submitted_at DESC
         LIMIT 60
     """, (now, cutoff))

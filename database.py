@@ -1,18 +1,20 @@
-import sqlite3
-from pathlib import Path
+import os
+import psycopg2
+import psycopg2.extras
 
-DB_PATH = Path(__file__).parent / "game.db"
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = psycopg2.connect(DATABASE_URL)
+    conn.autocommit = False
     return conn
 
 def init_db():
     conn = get_db()
-    conn.executescript("""
+    cur = conn.cursor()
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             discord_id TEXT UNIQUE NOT NULL,
             username TEXT NOT NULL,
             avatar TEXT,
@@ -22,7 +24,8 @@ def init_db():
             total_points INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-
+    """)
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS matches (
             id INTEGER PRIMARY KEY,
             home_team TEXT NOT NULL,
@@ -37,9 +40,10 @@ def init_db():
             stage TEXT,
             group_name TEXT
         );
-
+    """)
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS predictions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             user_id INTEGER NOT NULL,
             match_id INTEGER NOT NULL,
             home_score INTEGER NOT NULL,
@@ -52,4 +56,5 @@ def init_db():
         );
     """)
     conn.commit()
+    cur.close()
     conn.close()

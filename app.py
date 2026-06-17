@@ -4,6 +4,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 from database import get_db, init_db
 from api import fetch_and_update_matches, is_locked, time_until_lock
+import psycopg2.extras
 import requests
 import os
 
@@ -26,6 +27,16 @@ X_TWEET_ID      = os.getenv("X_TWEET_ID", "")
 X_AUTH_URL      = "https://x.com/i/oauth2/authorize"
 X_TOKEN_URL     = "https://api.twitter.com/2/oauth2/token"
 X_USER_URL      = "https://api.twitter.com/2/users/me"
+
+ADMIN_PASSWORD = "1235"
+
+def db_fetchone(cur, sql, params=()):
+    cur.execute(sql, params)
+    return cur.fetchone()
+
+def db_fetchall(cur, sql, params=()):
+    cur.execute(sql, params)
+    return cur.fetchall()
 
 # ── Startup ───────────────────────────────────────────────────────────────────
 init_db()
@@ -66,7 +77,9 @@ def inject_user():
     user = None
     if "user_id" in session:
         conn = get_db()
-        user = conn.execute("SELECT * FROM users WHERE id=?", (session["user_id"],)).fetchone()
+        cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        user = db_fetchone(cur, "SELECT * FROM users WHERE id=%s", (session["user_id"],))
+        cur.close()
         conn.close()
         if not user:
             session.clear()
@@ -97,7 +110,6 @@ def callback():
         flash("Discord login failed — no code received.")
         return redirect(url_for("index"))
 
-    # Exchange code for access token
     token_resp = requests.post(DISCORD_TOKEN_URL, data={
         "client_id":     DISCORD_CLIENT_ID,
         "client_secret": DISCORD_CLIENT_SECRET,
@@ -111,9 +123,7 @@ def callback():
         return redirect(url_for("index"))
 
     access_token = token_resp.json().get("access_token")
-
-    # Get user info from Discord
-    user_resp = requests.get(DISCORD_API_URL, headers={"Authorization": f"Bearer {access_token}"})
+    user_resp    = requests.get(DISCORD_API_URL, headers={"Authorization": f"Bearer {access_token}"})
     if user_resp.status_code != 200:
         flash("Discord login failed — could not get user info.")
         return redirect(url_for("index"))
@@ -123,17 +133,18 @@ def callback():
     username     = discord_user.get("global_name") or discord_user.get("username", "Unknown")
     avatar       = discord_user.get("avatar")
 
-    # Save or update user in DB
     conn = get_db()
-    conn.execute("""
+    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
         INSERT INTO users (discord_id, username, avatar)
-        VALUES (?, ?, ?)
+        VALUES (%s, %s, %s)
         ON CONFLICT(discord_id) DO UPDATE SET
-            username = excluded.username,
-            avatar   = excluded.avatar
+            username = EXCLUDED.username,
+            avatar   = EXCLUDED.avatar
     """, (discord_id, username, avatar))
     conn.commit()
-    user = conn.execute("SELECT * FROM users WHERE discord_id=?", (discord_id,)).fetchone()
+    user = db_fetchone(cur, "SELECT * FROM users WHERE discord_id=%s", (discord_id,))
+    cur.close()
     conn.close()
 
     session["user_id"]  = user["id"]
@@ -161,9 +172,9 @@ def _x_code_challenge(verifier):
 def x_login():
     if "user_id" not in session:
         return redirect(url_for("index"))
-    verifier   = _x_code_verifier()
-    challenge  = _x_code_challenge(verifier)
-    state      = _secrets.token_urlsafe(16)
+    verifier  = _x_code_verifier()
+    challenge = _x_code_challenge(verifier)
+    state     = _secrets.token_urlsafe(16)
     session["x_state"] = state
     params = (
         f"{X_AUTH_URL}"
@@ -193,9 +204,7 @@ def x_callback():
         flash("Invalid state — please try again.")
         return redirect(url_for("verify"))
 
-    verifier = session.get("x_code_verifier", "")
-
-    # Exchange code for token
+    verifier   = session.get("x_code_verifier", "")
     token_resp = requests.post(X_TOKEN_URL,
         data={
             "grant_type":    "authorization_code",
@@ -210,34 +219,27 @@ def x_callback():
         return redirect(url_for("verify"))
 
     access_token = token_resp.json().get("access_token")
-
-    # Get X user info
-    user_resp = requests.get(X_USER_URL,
-        headers={"Authorization": f"Bearer {access_token}"}
-    )
+    user_resp    = requests.get(X_USER_URL, headers={"Authorization": f"Bearer {access_token}"})
     if user_resp.status_code != 200:
         flash("X login failed — could not get user info.")
         return redirect(url_for("verify"))
 
-    x_user    = user_resp.json().get("data", {})
-    x_id      = x_user.get("id")
+    x_user     = user_resp.json().get("data", {})
+    x_id       = x_user.get("id")
     x_username = x_user.get("username")
 
-    # Save X info (connected but not yet verified)
     conn = get_db()
-    conn.execute("""
-        UPDATE users SET x_id=?, x_username=?, x_verified=0
-        WHERE id=?
-    """, (x_id, x_username, session["user_id"]))
+    cur  = conn.cursor()
+    cur.execute("UPDATE users SET x_id=%s, x_username=%s, x_verified=0 WHERE id=%s",
+                (x_id, x_username, session["user_id"]))
     conn.commit()
+    cur.close()
     conn.close()
 
-    # Store token in session for polling
     session["x_access_token"] = access_token
     session["x_user_id"]      = x_id
     session["x_username"]     = x_username
 
-    # Check immediately — owner bypass or already retweeted
     is_owner  = x_username and x_username.lower() == "cryptoelders"
     retweeted = is_owner or _check_retweet(access_token, x_id)
     if retweeted:
@@ -249,10 +251,22 @@ def x_callback():
 
 def _mark_verified(x_id, x_username, user_id):
     conn = get_db()
-    conn.execute("UPDATE users SET x_id=?, x_username=?, x_verified=1 WHERE id=?",
-                 (x_id, x_username, user_id))
+    cur  = conn.cursor()
+    cur.execute("UPDATE users SET x_id=%s, x_username=%s, x_verified=1 WHERE id=%s",
+                (x_id, x_username, user_id))
     conn.commit()
+    cur.close()
     conn.close()
+
+def _check_retweet(access_token: str, x_user_id: str) -> bool:
+    if not X_TWEET_ID:
+        return True
+    url  = f"https://api.twitter.com/2/tweets/{X_TWEET_ID}/retweeted_by"
+    resp = requests.get(url, headers={"Authorization": f"Bearer {access_token}"})
+    if resp.status_code != 200:
+        return False
+    users = resp.json().get("data", [])
+    return any(u["id"] == x_user_id for u in users)
 
 @app.route("/check-retweet-debug")
 def check_retweet_debug():
@@ -280,25 +294,18 @@ def check_retweet_poll():
         return {"verified": True}
     return {"verified": False}
 
-def _check_retweet(access_token: str, x_user_id: str) -> bool:
-    if not X_TWEET_ID:
-        return True
-    url  = f"https://api.twitter.com/2/tweets/{X_TWEET_ID}/retweeted_by"
-    resp = requests.get(url, headers={"Authorization": f"Bearer {access_token}"})
-    print(f"[RETWEET CHECK] status={resp.status_code} user_id={x_user_id}")
-    print(f"[RETWEET CHECK] body={resp.text[:500]}")
-    if resp.status_code != 200:
-        return False
-    users = resp.json().get("data", [])
-    return any(u["id"] == x_user_id for u in users)
-
 @app.route("/verify")
 def verify():
     if "user_id" not in session:
         return redirect(url_for("index"))
     conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE id=?", (session["user_id"],)).fetchone()
+    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    user = db_fetchone(cur, "SELECT * FROM users WHERE id=%s", (session["user_id"],))
+    cur.close()
     conn.close()
+    if not user:
+        session.clear()
+        return redirect(url_for("index"))
     if user["x_verified"]:
         return redirect(url_for("predict"))
     x_connected = bool(session.get("x_access_token"))
@@ -318,25 +325,29 @@ def predict():
     if "user_id" not in session:
         return redirect(url_for("index"))
     conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE id=?", (session["user_id"],)).fetchone()
-    conn.close()
+    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    user = db_fetchone(cur, "SELECT * FROM users WHERE id=%s", (session["user_id"],))
     if not user:
+        cur.close()
+        conn.close()
         session.clear()
         return redirect(url_for("index"))
     if not user["x_verified"]:
+        cur.close()
+        conn.close()
         return redirect(url_for("verify"))
 
-    conn = get_db()
-    rows = conn.execute("""
+    rows = db_fetchall(cur, """
         SELECT m.*,
                p.home_score AS pred_home,
                p.away_score AS pred_away
         FROM   matches m
         LEFT JOIN predictions p
-               ON m.id = p.match_id AND p.user_id = ?
+               ON m.id = p.match_id AND p.user_id = %s
         WHERE  m.status IN ('TIMED','SCHEDULED','IN_PLAY')
         ORDER  BY m.kickoff_utc
-    """, (session["user_id"],)).fetchall()
+    """, (session["user_id"],))
+    cur.close()
     conn.close()
 
     from collections import defaultdict
@@ -353,17 +364,18 @@ def predict():
 def submit_prediction(match_id):
     if "user_id" not in session:
         return redirect(url_for("index"))
-    conn  = get_db()
-    user  = conn.execute("SELECT * FROM users WHERE id=?", (session["user_id"],)).fetchone()
-    if not user["x_verified"]:
+    conn = get_db()
+    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    user = db_fetchone(cur, "SELECT * FROM users WHERE id=%s", (session["user_id"],))
+    if not user or not user["x_verified"]:
+        cur.close()
         conn.close()
         return redirect(url_for("verify"))
 
-    conn  = get_db()
-    match = conn.execute("SELECT * FROM matches WHERE id=?", (match_id,)).fetchone()
-
+    match = db_fetchone(cur, "SELECT * FROM matches WHERE id=%s", (match_id,))
     if not match or is_locked(match["kickoff_utc"]):
         flash("⏰ Predictions are locked for this match.")
+        cur.close()
         conn.close()
         return redirect(url_for("predict"))
 
@@ -372,19 +384,21 @@ def submit_prediction(match_id):
         away = max(0, int(request.form.get("away_score", 0)))
     except ValueError:
         flash("Invalid score.")
+        cur.close()
         conn.close()
         return redirect(url_for("predict"))
 
-    conn.execute("""
+    cur.execute("""
         INSERT INTO predictions (user_id, match_id, home_score, away_score)
-        VALUES (?,?,?,?)
+        VALUES (%s,%s,%s,%s)
         ON CONFLICT(user_id, match_id) DO UPDATE SET
-            home_score    = excluded.home_score,
-            away_score    = excluded.away_score,
-            submitted_at  = CURRENT_TIMESTAMP,
+            home_score   = EXCLUDED.home_score,
+            away_score   = EXCLUDED.away_score,
+            submitted_at = CURRENT_TIMESTAMP,
             points_earned = NULL
     """, (session["user_id"], match_id, home, away))
     conn.commit()
+    cur.close()
     conn.close()
     flash("✅ Prediction saved!")
     return redirect(url_for("predict"))
@@ -392,7 +406,8 @@ def submit_prediction(match_id):
 @app.route("/leaderboard")
 def leaderboard():
     conn  = get_db()
-    users = conn.execute("""
+    cur   = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    users = db_fetchall(cur, """
         SELECT u.discord_id, u.username, u.avatar, u.total_points,
                COUNT(CASE WHEN p.points_earned = 3 THEN 1 END) AS exact_scores,
                COUNT(CASE WHEN p.points_earned = 1 THEN 1 END) AS correct_winners,
@@ -400,36 +415,34 @@ def leaderboard():
                COUNT(p.id) AS total_preds
         FROM   users u
         LEFT JOIN predictions p ON u.id = p.user_id
-        GROUP  BY u.id
+        GROUP  BY u.id, u.discord_id, u.username, u.avatar, u.total_points
         ORDER  BY u.total_points DESC, exact_scores DESC, u.username
-    """).fetchall()
+    """)
+    cur.close()
     conn.close()
     return render_template("leaderboard.html", users=users)
 
 @app.route("/results")
 def results():
     conn    = get_db()
-    matches = conn.execute("""
-        SELECT * FROM matches WHERE status='FINISHED'
-        ORDER BY kickoff_utc DESC
-    """).fetchall()
+    cur     = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    matches = db_fetchall(cur, "SELECT * FROM matches WHERE status='FINISHED' ORDER BY kickoff_utc DESC")
 
     data = []
     for m in matches:
-        preds = conn.execute("""
+        preds = db_fetchall(cur, """
             SELECT u.username, u.discord_id, u.avatar,
                    p.home_score, p.away_score, p.points_earned
             FROM   predictions p
             JOIN   users u ON p.user_id = u.id
-            WHERE  p.match_id = ?
+            WHERE  p.match_id = %s
             ORDER  BY COALESCE(p.points_earned,-1) DESC, u.username
-        """, (m["id"],)).fetchall()
+        """, (m["id"],))
         data.append({"match": dict(m), "predictions": [dict(p) for p in preds]})
 
+    cur.close()
     conn.close()
     return render_template("results.html", data=data)
-
-ADMIN_PASSWORD = "1235"
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
@@ -441,15 +454,19 @@ def admin():
     if not session.get("admin"):
         return render_template("admin.html", authed=False)
     conn  = get_db()
-    users = conn.execute("""
+    cur   = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    users = db_fetchall(cur, """
         SELECT u.*, COUNT(p.id) as total_preds
         FROM users u
         LEFT JOIN predictions p ON u.id = p.user_id
         GROUP BY u.id
         ORDER BY u.created_at DESC
-    """).fetchall()
-    total = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-    verified = conn.execute("SELECT COUNT(*) FROM users WHERE x_verified=1").fetchone()[0]
+    """)
+    cur.execute("SELECT COUNT(*) AS c FROM users")
+    total    = cur.fetchone()["c"]
+    cur.execute("SELECT COUNT(*) AS c FROM users WHERE x_verified=1")
+    verified = cur.fetchone()["c"]
+    cur.close()
     conn.close()
     return render_template("admin.html", authed=True, users=users, total=total, verified=verified)
 

@@ -16,20 +16,20 @@ def fetch_and_update_matches():
             return
         matches = r.json().get("matches", [])
         conn = get_db()
+        cur = conn.cursor()
         for m in matches:
-            # Skip TBD matches (knockout stage teams not yet determined)
             if not m["homeTeam"].get("name") or not m["awayTeam"].get("name"):
                 continue
             ft = m.get("score", {}).get("fullTime", {})
-            conn.execute("""
+            cur.execute("""
                 INSERT INTO matches
                     (id, home_team, away_team, home_crest, away_crest,
                      kickoff_utc, status, home_score, away_score, matchday, stage, group_name)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 ON CONFLICT(id) DO UPDATE SET
-                    status      = excluded.status,
-                    home_score  = excluded.home_score,
-                    away_score  = excluded.away_score
+                    status      = EXCLUDED.status,
+                    home_score  = EXCLUDED.home_score,
+                    away_score  = EXCLUDED.away_score
             """, (
                 m["id"],
                 m["homeTeam"]["name"], m["awayTeam"]["name"],
@@ -40,6 +40,7 @@ def fetch_and_update_matches():
             ))
         conn.commit()
         _calculate_points(conn)
+        cur.close()
         conn.close()
         print(f"[API] Updated {len(matches)} matches")
     except Exception as e:
@@ -51,29 +52,30 @@ def _winner(home, away):
     return "draw"
 
 def _calculate_points(conn):
-    finished = conn.execute(
-        "SELECT * FROM matches WHERE status='FINISHED' AND home_score IS NOT NULL"
-    ).fetchall()
+    cur = conn.cursor(cursor_factory=__import__('psycopg2').extras.RealDictCursor)
+    cur.execute("SELECT * FROM matches WHERE status='FINISHED' AND home_score IS NOT NULL")
+    finished = cur.fetchall()
     for match in finished:
-        preds = conn.execute(
-            "SELECT * FROM predictions WHERE match_id=? AND points_earned IS NULL",
+        cur.execute(
+            "SELECT * FROM predictions WHERE match_id=%s AND points_earned IS NULL",
             (match["id"],)
-        ).fetchall()
+        )
+        preds = cur.fetchall()
         for p in preds:
             pts = 0
             if p["home_score"] == match["home_score"] and p["away_score"] == match["away_score"]:
                 pts = 3
             elif _winner(p["home_score"], p["away_score"]) == _winner(match["home_score"], match["away_score"]):
                 pts = 1
-            conn.execute("UPDATE predictions SET points_earned=? WHERE id=?", (pts, p["id"]))
-    # Recalculate user totals
-    conn.execute("""
+            cur.execute("UPDATE predictions SET points_earned=%s WHERE id=%s", (pts, p["id"]))
+    cur.execute("""
         UPDATE users SET total_points = (
             SELECT COALESCE(SUM(points_earned), 0)
             FROM predictions WHERE user_id = users.id AND points_earned IS NOT NULL
         )
     """)
     conn.commit()
+    cur.close()
 
 def is_locked(kickoff_utc: str) -> bool:
     kickoff = datetime.fromisoformat(kickoff_utc.replace("Z", "+00:00"))

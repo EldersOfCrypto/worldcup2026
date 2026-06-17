@@ -7,6 +7,7 @@ from api import fetch_and_update_matches, is_locked, time_until_lock
 import psycopg2.extras
 import requests
 import os
+import random
 
 load_dotenv()
 
@@ -29,6 +30,15 @@ X_TOKEN_URL     = "https://api.twitter.com/2/oauth2/token"
 X_USER_URL      = "https://api.twitter.com/2/users/me"
 
 ADMIN_PASSWORD = "1235"
+
+ORDINAL_AVATARS = [
+    "god1.png","god2.png","god3.png","god4.png",
+    "sprite55.png","sprite551.png","sprite5511.png","sprite55111.png",
+    "sprite551111.png","sprite5511111.png","sprite55112.png","sprite5512.png",
+    "sprite55121.png","sprite551211.png","sprite5513.png","sprite552.png",
+    "sprite5521.png","sprite55211.png","sprite552111.png","sprite5522.png",
+    "sprite553.png","sprite5531.png","sprite55311.png","sprite554.png",
+]
 
 def db_fetchone(cur, sql, params=()):
     cur.execute(sql, params)
@@ -85,7 +95,9 @@ def inject_user():
             session.clear()
     return {"current_user": user}
 
-def avatar_url(discord_id, avatar_hash):
+def avatar_url(discord_id, avatar_hash, ordinal=None):
+    if ordinal:
+        return f"/static/ordinals/{ordinal}"
     if avatar_hash:
         return f"https://cdn.discordapp.com/avatars/{discord_id}/{avatar_hash}.png?size=64"
     return f"https://cdn.discordapp.com/embed/avatars/0.png"
@@ -135,13 +147,14 @@ def callback():
 
     conn = get_db()
     cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    ordinal = random.choice(ORDINAL_AVATARS)
     cur.execute("""
-        INSERT INTO users (discord_id, username, avatar)
-        VALUES (%s, %s, %s)
+        INSERT INTO users (discord_id, username, avatar, ordinal_avatar)
+        VALUES (%s, %s, %s, %s)
         ON CONFLICT(discord_id) DO UPDATE SET
             username = EXCLUDED.username,
             avatar   = EXCLUDED.avatar
-    """, (discord_id, username, avatar))
+    """, (discord_id, username, avatar, ordinal))
     conn.commit()
     user = db_fetchone(cur, "SELECT * FROM users WHERE discord_id=%s", (discord_id,))
     cur.close()

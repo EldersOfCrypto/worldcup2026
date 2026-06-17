@@ -18,6 +18,7 @@ def init_db():
             discord_id TEXT UNIQUE NOT NULL,
             username TEXT NOT NULL,
             avatar TEXT,
+            ordinal_avatar TEXT,
             x_id TEXT,
             x_username TEXT,
             x_verified INTEGER DEFAULT 0,
@@ -54,6 +55,10 @@ def init_db():
             FOREIGN KEY (match_id) REFERENCES matches(id),
             UNIQUE(user_id, match_id)
         );
+    """)
+    # Add ordinal_avatar column if it doesn't exist (for existing DBs)
+    cur.execute("""
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS ordinal_avatar TEXT
     """)
     conn.commit()
     cur.close()

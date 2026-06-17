@@ -58,7 +58,7 @@
       <div class="d-flex align-items-center gap-3">
         {% if current_user %}
           <span class="user-badge">
-            <img src="{{ avatar_url(current_user['discord_id'], current_user['avatar']) }}"
+            <img src="{{ avatar_url(current_user['discord_id'], current_user['avatar'], current_user.get('ordinal_avatar')) }}"
                  class="discord-avatar me-2" alt="">
             {{ current_user['username'] }}
           </span>

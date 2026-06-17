@@ -43,7 +43,7 @@
         <td class="rank-num">{{ loop.index }}</td>
         <td>
           <div class="d-flex align-items-center gap-2">
-            <img src="{{ avatar_url(u['discord_id'], u['avatar']) }}" class="discord-avatar">
+            <img src="{{ avatar_url(u['discord_id'], u['avatar'], u.get('ordinal_avatar')) }}" class="discord-avatar">
             {{ u['username'] }}
           </div>
         </td>

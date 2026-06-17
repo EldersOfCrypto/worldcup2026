@@ -81,15 +81,17 @@
               <small class="text-muted">No prediction</small>
             {% endif %}
           {% else %}
-            <input type="number" name="home_score_{{ m.id }}" class="score-input"
-                   value="{{ m.pred_home if m.pred_home is not none else '' }}"
-                   min="0" max="20" placeholder="0">
-            <span class="vs-sep">–</span>
-            <input type="number" name="away_score_{{ m.id }}" class="score-input"
-                   value="{{ m.pred_away if m.pred_away is not none else '' }}"
-                   min="0" max="20" placeholder="0">
+            <div class="score-form">
+              <input type="number" name="home_score_{{ m.id }}" class="score-input"
+                     value="{{ m.pred_home if m.pred_home is not none else '' }}"
+                     min="0" max="20" placeholder="0">
+              <span class="vs-sep">–</span>
+              <input type="number" name="away_score_{{ m.id }}" class="score-input"
+                     value="{{ m.pred_away if m.pred_away is not none else '' }}"
+                     min="0" max="20" placeholder="0">
+            </div>
             {% if m.pred_home is not none %}
-              <small class="saved-label ms-2">✓ Saved</small>
+              <small class="saved-label">✓ Saved</small>
             {% endif %}
           {% endif %}
         </div>

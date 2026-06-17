@@ -30,6 +30,7 @@ X_TOKEN_URL     = "https://api.twitter.com/2/oauth2/token"
 X_USER_URL      = "https://api.twitter.com/2/users/me"
 
 ADMIN_PASSWORD = "1235"
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
 
 ORDINAL_AVATARS = [
     "god1.png","god2.png","god3.png","god4.png",
@@ -54,6 +55,7 @@ fetch_and_update_matches()
 
 scheduler = BackgroundScheduler(daemon=True)
 scheduler.add_job(fetch_and_update_matches, "interval", minutes=5)
+scheduler.add_job(send_daily_leaderboard, "cron", hour=20, minute=0)
 scheduler.start()
 
 # ── Template filters ──────────────────────────────────────────────────────────
@@ -103,6 +105,69 @@ def avatar_url(discord_id, avatar_hash, ordinal=None):
     return f"https://cdn.discordapp.com/embed/avatars/0.png"
 
 app.jinja_env.globals["avatar_url"] = avatar_url
+
+def get_badges(user_id, cur):
+    badges = []
+    cur.execute("SELECT COUNT(*) as c FROM predictions WHERE user_id=%s AND points_earned=3", (user_id,))
+    if cur.fetchone()["c"] > 0:
+        badges.append({"id": "sniper", "icon": "🎯", "name": "Sniper", "desc": "Predicted an exact score"})
+    cur.execute("""
+        SELECT p.points_earned FROM predictions p
+        JOIN matches m ON p.match_id = m.id
+        WHERE p.user_id=%s AND p.points_earned IS NOT NULL
+        ORDER BY m.kickoff_utc
+    """, (user_id,))
+    rows = cur.fetchall()
+    streak = max_streak = 0
+    for r in rows:
+        if r["points_earned"] > 0:
+            streak += 1
+            max_streak = max(max_streak, streak)
+        else:
+            streak = 0
+    if max_streak >= 3:
+        badges.append({"id": "on_fire", "icon": "🔥", "name": "On Fire", "desc": "3+ correct results in a row"})
+    cur.execute("""
+        SELECT COUNT(*) as c FROM predictions p
+        JOIN matches m ON p.match_id = m.id
+        WHERE p.user_id=%s AND p.points_earned=3 AND m.stage != 'GROUP_STAGE'
+    """, (user_id,))
+    if cur.fetchone()["c"] > 0:
+        badges.append({"id": "nostradamus", "icon": "🏆", "name": "Nostradamus", "desc": "Exact score in a knockout match"})
+    cur.execute("""
+        SELECT COUNT(*) as c FROM predictions p
+        JOIN matches m ON p.match_id = m.id
+        WHERE p.user_id=%s
+        AND p.submitted_at IS NOT NULL
+        AND (m.kickoff_utc::timestamptz - p.submitted_at) <= interval '1 hour'
+        AND m.kickoff_utc::timestamptz > p.submitted_at
+    """, (user_id,))
+    if cur.fetchone()["c"] > 0:
+        badges.append({"id": "speed_demon", "icon": "⚡", "name": "Speed Demon", "desc": "Predicted within 1 hour of kickoff"})
+    return badges
+
+def _send_discord_webhook_app(content):
+    url = os.getenv("DISCORD_WEBHOOK_URL", "")
+    if not url:
+        return
+    try:
+        requests.post(url, json={"content": content}, timeout=5)
+    except Exception:
+        pass
+
+def send_daily_leaderboard():
+    try:
+        conn = get_db()
+        cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        top  = db_fetchall(cur, "SELECT username, total_points FROM users ORDER BY total_points DESC LIMIT 5")
+        cur.close(); conn.close()
+        if not top or top[0]["total_points"] == 0:
+            return
+        medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+        lines  = [f"{medals[i]} **{u['username']}** — {u['total_points']} pts" for i, u in enumerate(top)]
+        _send_discord_webhook_app("**📊 Daily Leaderboard — WC 2026**\n" + "\n".join(lines))
+    except Exception as e:
+        print(f"[Webhook] leaderboard error: {e}")
 
 # ── Discord OAuth ─────────────────────────────────────────────────────────────
 @app.route("/discord-login")
@@ -364,18 +429,45 @@ def predict():
         WHERE  m.status IN ('TIMED','SCHEDULED','IN_PLAY')
         ORDER  BY m.kickoff_utc
     """, (session["user_id"],))
-    cur.close()
-    conn.close()
 
     from collections import defaultdict
     grouped = defaultdict(list)
+    all_matches = []
     for r in rows:
         m = dict(r)
         m["locked"]          = is_locked(m["kickoff_utc"])
         m["time_until_lock"] = time_until_lock(m["kickoff_utc"])
         grouped[fmt_date(m["kickoff_utc"])].append(m)
+        all_matches.append(m)
 
-    return render_template("predict.html", grouped=dict(grouped))
+    locked_ids = [m["id"] for m in all_matches if m["locked"]]
+    consensus = {}
+    if locked_ids:
+        cur.execute("""
+            SELECT match_id, home_score, away_score, COUNT(*) as cnt
+            FROM predictions
+            WHERE match_id = ANY(%s) AND home_score IS NOT NULL
+            GROUP BY match_id, home_score, away_score
+            ORDER BY match_id, cnt DESC
+        """, (locked_ids,))
+        for row in cur.fetchall():
+            mid = row["match_id"]
+            if mid not in consensus:
+                consensus[mid] = {"scores": [], "total": 0}
+            consensus[mid]["total"] += row["cnt"]
+            if len(consensus[mid]["scores"]) < 3:
+                consensus[mid]["scores"].append({
+                    "label": f"{row['home_score']}-{row['away_score']}",
+                    "cnt": row["cnt"]
+                })
+        for mid in consensus:
+            total = consensus[mid]["total"]
+            for s in consensus[mid]["scores"]:
+                s["pct"] = round(s["cnt"] / total * 100) if total > 0 else 0
+
+    cur.close()
+    conn.close()
+    return render_template("predict.html", grouped=dict(grouped), consensus=consensus)
 
 @app.route("/predict/<int:match_id>", methods=["POST"])
 def submit_prediction(match_id):
@@ -470,6 +562,54 @@ def save_all_predictions():
         flash(f"⏰ {locked} match{'es' if locked != 1 else ''} already locked — skipped.")
     return redirect(url_for("predict"))
 
+@app.route("/live-scores")
+def live_scores():
+    conn    = get_db()
+    cur     = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    matches = db_fetchall(cur, "SELECT id, home_score, away_score FROM matches WHERE status='IN_PLAY'")
+    cur.close(); conn.close()
+    return {"matches": [{"id": m["id"], "home": m["home_score"], "away": m["away_score"]} for m in matches]}
+
+@app.route("/profile/<username>")
+def profile(username):
+    conn = get_db()
+    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    user = db_fetchone(cur, "SELECT * FROM users WHERE LOWER(username)=LOWER(%s)", (username,))
+    if not user:
+        cur.close(); conn.close()
+        flash(f"Player '{username}' not found.")
+        return redirect(url_for("leaderboard"))
+    history = db_fetchall(cur, """
+        SELECT p.home_score AS pred_home, p.away_score AS pred_away,
+               p.points_earned, p.submitted_at,
+               m.home_team, m.away_team,
+               m.home_score AS real_home, m.away_score AS real_away,
+               m.kickoff_utc, m.stage, m.group_name, m.status
+        FROM predictions p
+        JOIN matches m ON p.match_id = m.id
+        WHERE p.user_id=%s
+        ORDER BY m.kickoff_utc DESC
+    """, (user["id"],))
+    graded  = [h for h in history if h["points_earned"] is not None]
+    correct = len([h for h in graded if h["points_earned"] > 0])
+    exact   = len([h for h in graded if h["points_earned"] == 3])
+    accuracy = round(correct / len(graded) * 100) if graded else 0
+    badges  = get_badges(user["id"], cur)
+    cur.close(); conn.close()
+    return render_template("profile.html",
+        profile_user=user,
+        history=history,
+        badges=badges,
+        stats={
+            "total_points": user["total_points"],
+            "predictions":  len(history),
+            "graded":       len(graded),
+            "correct":      correct,
+            "exact":        exact,
+            "accuracy":     accuracy,
+        }
+    )
+
 @app.route("/leaderboard")
 def leaderboard():
     conn  = get_db()
@@ -563,10 +703,14 @@ def admin():
     total    = cur.fetchone()["c"]
     cur.execute("SELECT COUNT(*) AS c FROM users WHERE x_verified=1")
     verified = cur.fetchone()["c"]
+    matches = db_fetchall(cur, """
+        SELECT id, home_team, away_team, home_score, away_score, status
+        FROM matches ORDER BY kickoff_utc DESC LIMIT 80
+    """)
     cur.close()
     conn.close()
     return render_template("admin.html", authed=True, users=users, total=total, verified=verified,
-                           points_msg=None, points_ok=False)
+                           matches=matches, points_msg=None, points_ok=False)
 
 @app.route("/admin/give-points", methods=["POST"])
 def admin_give_points():
@@ -589,6 +733,40 @@ def admin_give_points():
     new_pts = user["total_points"] + pts
     cur.close(); conn.close()
     flash(f"✅ Gave {pts:+d} pts to {user['username']} — now at {new_pts} pts.")
+    return redirect(url_for("admin"))
+
+@app.route("/admin/force-grade", methods=["POST"])
+def admin_force_grade():
+    if not session.get("admin"):
+        return redirect(url_for("admin"))
+    from api import _calculate_points
+    conn = get_db()
+    _calculate_points(conn)
+    conn.close()
+    flash("✅ Points recalculated for all finished matches.")
+    return redirect(url_for("admin"))
+
+@app.route("/admin/set-score", methods=["POST"])
+def admin_set_score():
+    if not session.get("admin"):
+        return redirect(url_for("admin"))
+    try:
+        match_id = int(request.form.get("match_id"))
+        home     = int(request.form.get("home_score"))
+        away     = int(request.form.get("away_score"))
+    except (ValueError, TypeError):
+        flash("Invalid input.")
+        return redirect(url_for("admin"))
+    conn = get_db()
+    cur  = conn.cursor()
+    cur.execute("UPDATE matches SET home_score=%s, away_score=%s, status='FINISHED' WHERE id=%s",
+                (home, away, match_id))
+    conn.commit()
+    cur.close()
+    from api import _calculate_points
+    _calculate_points(conn)
+    conn.close()
+    flash(f"✅ Match {match_id} set to {home}–{away} and graded.")
     return redirect(url_for("admin"))
 
 if __name__ == "__main__":

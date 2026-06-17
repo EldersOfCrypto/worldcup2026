@@ -31,7 +31,7 @@
           <div class="d-flex align-items-center gap-2">
             <img src="{{ avatar_url(u['discord_id'], u['avatar'], u.get('ordinal_avatar')) }}"
                  class="ordinal-avatar-sm" alt="">
-            <strong>{{ u['username'] }}</strong>
+            <a href="{{ url_for('profile', username=u['username']) }}" class="text-white text-decoration-none fw-bold">{{ u['username'] }}</a>
             {% if current_user and u['username'] == current_user['username'] %}
               <span class="badge badge-you ms-1">You</span>
             {% endif %}

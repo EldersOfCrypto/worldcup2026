@@ -45,7 +45,7 @@
         {% elif m.locked %}
           <span class="badge badge-locked ms-2">🔒 Locked</span>
         {% else %}
-          <span class="badge badge-open ms-2">{{ m.time_until_lock }}</span>
+          <span class="badge badge-open ms-2" data-kickoff="{{ m.kickoff_utc }}" id="cd-{{ m.id }}">{{ m.time_until_lock }}</span>
         {% endif %}
       </span>
     </div>
@@ -63,8 +63,14 @@
         <!-- Score Inputs / Current Prediction -->
         <div class="score-section">
           {% if m.locked %}
+            {% if m.status == 'IN_PLAY' %}
+              <div class="live-score-current" id="live-current-{{ m.id }}">
+                {{ m.home_score if m.home_score is not none else 0 }} – {{ m.away_score if m.away_score is not none else 0 }}
+              </div>
+              <small style="font-size:0.68rem;font-weight:700;letter-spacing:1px;color:#e53e3e">● LIVE SCORE</small>
+            {% endif %}
             {% if m.pred_home is not none %}
-              <div class="prediction-display">
+              <div class="prediction-display mt-1">
                 <span class="pred-score">{{ m.pred_home }}</span>
                 <span class="pred-sep">–</span>
                 <span class="pred-score">{{ m.pred_away }}</span>
@@ -97,6 +103,20 @@
         </div>
       </div>
     </div>
+      {% if m.locked and consensus.get(m.id) %}
+      <div class="consensus-section mt-3">
+        <div class="consensus-label">Community picks</div>
+        {% for s in consensus[m.id].scores %}
+        <div class="consensus-row">
+          <span class="consensus-score-lbl">{{ s.label }}</span>
+          <div class="consensus-bar-track"><div class="consensus-bar-fill" style="width:{{ s.pct }}%"></div></div>
+          <span class="consensus-pct-lbl">{{ s.pct }}%</span>
+        </div>
+        {% endfor %}
+        <small class="text-muted" style="font-size:0.72rem">{{ consensus[m.id].total }} predictions total</small>
+      </div>
+      {% endif %}
+    </div>
   </div>
   {% endfor %}
 </div>
@@ -112,4 +132,44 @@
 
 </form>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Live countdown timers
+function updateCountdowns() {
+  document.querySelectorAll('.badge-open[data-kickoff]').forEach(function(el) {
+    var kickoff = new Date(el.dataset.kickoff);
+    var lock    = new Date(kickoff.getTime() - 60000);
+    var diff    = lock - new Date();
+    if (diff <= 0) {
+      el.textContent = 'Locked';
+      el.classList.remove('badge-open');
+      el.classList.add('badge-locked');
+      return;
+    }
+    var h = Math.floor(diff / 3600000);
+    var m = Math.floor((diff % 3600000) / 60000);
+    var s = Math.floor((diff % 60000) / 1000);
+    if (h > 0)      el.textContent = h + 'h ' + m + 'm';
+    else if (m > 0) el.textContent = m + 'm ' + s + 's';
+    else            el.textContent = s + 's';
+  });
+}
+setInterval(updateCountdowns, 1000);
+updateCountdowns();
+
+// Live score polling (only when matches are live)
+if (document.querySelector('.badge-live')) {
+  function refreshLiveScores() {
+    fetch('/live-scores').then(function(r) { return r.json(); }).then(function(data) {
+      data.matches.forEach(function(m) {
+        var el = document.getElementById('live-current-' + m.id);
+        if (el) el.textContent = (m.home !== null ? m.home : 0) + ' – ' + (m.away !== null ? m.away : 0);
+      });
+    }).catch(function(){});
+  }
+  setInterval(refreshLiveScores, 60000);
+}
+</script>
 {% endblock %}

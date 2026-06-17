@@ -42,6 +42,46 @@
   </div>
 </div>
 
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card h-100" style="background:#161b22;border:1px solid #30363d;">
+      <div class="card-body">
+        <h6 class="mb-1">Force Recalculate Points</h6>
+        <p class="text-muted small mb-3">Re-grades all finished matches and updates totals.</p>
+        <form method="POST" action="{{ url_for('admin_force_grade') }}">
+          <button type="submit" class="btn btn-gold px-4">Recalculate All Points</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100" style="background:#161b22;border:1px solid #30363d;">
+      <div class="card-body">
+        <h6 class="mb-3">Override Match Score</h6>
+        <form method="POST" action="{{ url_for('admin_set_score') }}" class="d-flex gap-2 flex-wrap align-items-end">
+          <div style="flex:1;min-width:160px">
+            <label class="form-label small text-muted mb-1">Match</label>
+            <select name="match_id" class="form-select login-input" required>
+              {% for m in matches %}
+              <option value="{{ m.id }}">{{ m.home_team }} vs {{ m.away_team }} [{{ m.status }}]</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="form-label small text-muted mb-1">Home</label>
+            <input type="number" name="home_score" class="form-control login-input" value="0" min="0" max="20" style="width:65px" required>
+          </div>
+          <div>
+            <label class="form-label small text-muted mb-1">Away</label>
+            <input type="number" name="away_score" class="form-control login-input" value="0" min="0" max="20" style="width:65px" required>
+          </div>
+          <button type="submit" class="btn btn-gold px-3">Set & Grade</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="table-card">
   <table class="table table-dark mb-0">
     <thead>

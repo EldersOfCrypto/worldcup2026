@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}{{ profile_user['username'] }} — WC 2026{% endblock %}
+{% block content %}
+
+<div class="profile-header mb-4">
+  <div class="d-flex align-items-center gap-4 flex-wrap">
+    <img src="{{ avatar_url(profile_user['discord_id'], profile_user['avatar'], profile_user.get('ordinal_avatar')) }}"
+         class="profile-avatar-lg" alt="">
+    <div>
+      <h2 class="mb-1" style="font-weight:800">{{ profile_user['username'] }}</h2>
+      {% if profile_user['x_username'] %}
+        <a href="https://x.com/{{ profile_user['x_username'] }}" target="_blank" class="text-muted text-decoration-none small">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" class="me-1">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+          </svg>
+          @{{ profile_user['x_username'] }}
+        </a>
+      {% endif %}
+      <div class="text-muted small mt-1">
+        <i class="fas fa-calendar me-1"></i>Joined {{ profile_user['created_at'].strftime('%b %Y') }}
+      </div>
+    </div>
+    <div class="ms-auto">
+      <a href="{{ url_for('leaderboard') }}" class="btn btn-sm btn-outline-gold">
+        <i class="fas fa-trophy me-1"></i>Leaderboard
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="d-flex gap-3 flex-wrap mb-4">
+  <div class="stat-box">
+    <div class="stat-num">{{ stats.total_points }}</div>
+    <div class="stat-label">Points</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">{{ stats.exact }}</div>
+    <div class="stat-label">Exact Scores</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">{{ stats.correct }}</div>
+    <div class="stat-label">Correct Results</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">{{ stats.accuracy }}%</div>
+    <div class="stat-label">Accuracy</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">{{ stats.predictions }}</div>
+    <div class="stat-label">Predictions</div>
+  </div>
+</div>
+
+<!-- Badges -->
+{% if badges %}
+<div class="mb-4">
+  <div class="section-label mb-3">Achievements</div>
+  <div class="d-flex gap-3 flex-wrap">
+    {% for b in badges %}
+    <div class="achievement-badge" title="{{ b.desc }}">
+      <span class="achievement-icon">{{ b.icon }}</span>
+      <span class="achievement-name">{{ b.name }}</span>
+      <span class="achievement-desc">{{ b.desc }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Prediction History -->
+<div class="section-label mb-3">Prediction History</div>
+{% if history %}
+<div class="table-card">
+  <table class="table table-dark mb-0">
+    <thead>
+      <tr>
+        <th>Match</th>
+        <th class="text-center">Prediction</th>
+        <th class="text-center">Final Score</th>
+        <th class="text-center">Points</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for h in history %}
+      <tr>
+        <td>
+          <div class="fw-semibold" style="font-size:0.9rem">{{ h.home_team }} vs {{ h.away_team }}</div>
+          <small class="text-muted">{{ h.kickoff_utc | fmt_date }} · {{ h.kickoff_utc | fmt_time }}</small>
+        </td>
+        <td class="text-center">
+          <span class="pred-score">{{ h.pred_home }}</span>
+          <span class="pred-sep mx-1">–</span>
+          <span class="pred-score">{{ h.pred_away }}</span>
+        </td>
+        <td class="text-center">
+          {% if h.real_home is not none %}
+            <span class="fw-bold {% if h.points_earned == 3 %}text-warning{% elif h.points_earned == 1 %}text-success{% else %}text-muted{% endif %}">
+              {{ h.real_home }} – {{ h.real_away }}
+            </span>
+          {% elif h.status == 'IN_PLAY' %}
+            <span class="badge badge-live">LIVE</span>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          {% if h.points_earned == 3 %}
+            <span class="badge badge-exact px-2">🎯 +3</span>
+          {% elif h.points_earned == 1 %}
+            <span class="badge badge-winner px-2">✓ +1</span>
+          {% elif h.points_earned == 0 %}
+            <span class="badge badge-zero px-2">✗ 0</span>
+          {% else %}
+            <span class="text-muted small">Pending</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="text-center py-4 text-muted">No predictions yet.</div>
+{% endif %}
+
+{% endblock %}

@@ -8,6 +8,15 @@ BASE_URL = "https://api.football-data.org/v4"
 def _headers():
     return {"X-Auth-Token": os.getenv("FOOTBALL_API_KEY", "")}
 
+def _send_discord_webhook(content):
+    url = os.getenv("DISCORD_WEBHOOK_URL", "")
+    if not url:
+        return
+    try:
+        requests.post(url, json={"content": content}, timeout=5)
+    except Exception:
+        pass
+
 def fetch_and_update_matches():
     try:
         r = requests.get(f"{BASE_URL}/competitions/WC/matches", headers=_headers(), timeout=10)
@@ -68,6 +77,14 @@ def _calculate_points(conn):
             elif _winner(p["home_score"], p["away_score"]) == _winner(match["home_score"], match["away_score"]):
                 pts = 1
             cur.execute("UPDATE predictions SET points_earned=%s WHERE id=%s", (pts, p["id"]))
+            if pts == 3:
+                cur.execute("SELECT username FROM users WHERE id=%s", (p["user_id"],))
+                u = cur.fetchone()
+                if u:
+                    _send_discord_webhook(
+                        f"🎯 **{u['username']}** nailed the exact score! "
+                        f"**{match['home_team']} {match['home_score']}–{match['away_score']} {match['away_team']}** · +3 pts 🔥"
+                    )
     cur.execute("""
         UPDATE users SET total_points = (
             SELECT COALESCE(SUM(points_earned), 0)

@@ -152,8 +152,12 @@ def callback():
         INSERT INTO users (discord_id, username, avatar, ordinal_avatar)
         VALUES (%s, %s, %s, %s)
         ON CONFLICT(discord_id) DO UPDATE SET
-            username = EXCLUDED.username,
-            avatar   = EXCLUDED.avatar
+            username       = EXCLUDED.username,
+            avatar         = EXCLUDED.avatar,
+            ordinal_avatar = CASE
+                WHEN users.ordinal_avatar IS NULL THEN EXCLUDED.ordinal_avatar
+                ELSE users.ordinal_avatar
+            END
     """, (discord_id, username, avatar, ordinal))
     conn.commit()
     user = db_fetchone(cur, "SELECT * FROM users WHERE discord_id=%s", (discord_id,))

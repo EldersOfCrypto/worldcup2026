@@ -68,6 +68,8 @@ def inject_user():
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE id=?", (session["user_id"],)).fetchone()
         conn.close()
+        if not user:
+            session.clear()
     return {"current_user": user}
 
 def avatar_url(discord_id, avatar_hash):
@@ -318,6 +320,9 @@ def predict():
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE id=?", (session["user_id"],)).fetchone()
     conn.close()
+    if not user:
+        session.clear()
+        return redirect(url_for("index"))
     if not user["x_verified"]:
         return redirect(url_for("verify"))
 

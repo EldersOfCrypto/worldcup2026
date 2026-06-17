@@ -421,14 +421,14 @@ def leaderboard():
     conn  = get_db()
     cur   = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     users = db_fetchall(cur, """
-        SELECT u.discord_id, u.username, u.avatar, u.total_points,
+        SELECT u.discord_id, u.username, u.avatar, u.ordinal_avatar, u.total_points,
                COUNT(CASE WHEN p.points_earned = 3 THEN 1 END) AS exact_scores,
                COUNT(CASE WHEN p.points_earned = 1 THEN 1 END) AS correct_winners,
                COUNT(CASE WHEN p.points_earned IS NOT NULL THEN 1 END) AS graded,
                COUNT(p.id) AS total_preds
         FROM   users u
         LEFT JOIN predictions p ON u.id = p.user_id
-        GROUP  BY u.id, u.discord_id, u.username, u.avatar, u.total_points
+        GROUP  BY u.id, u.discord_id, u.username, u.avatar, u.ordinal_avatar, u.total_points
         ORDER  BY u.total_points DESC, exact_scores DESC, u.username
     """)
     cur.close()

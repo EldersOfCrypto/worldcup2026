@@ -210,6 +210,14 @@ body {
   border-radius: 50%;
   object-fit: cover;
 }
+.ordinal-avatar-sm {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: #0d1117;
+}
 
 .login-input {
   background: var(--card2);

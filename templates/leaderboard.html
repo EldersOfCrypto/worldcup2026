@@ -28,11 +28,14 @@
           {% endif %}
         </td>
         <td>
-          <i class="fab fa-discord me-1 text-muted"></i>
-          <strong>{{ u['username'] }}</strong>
-          {% if current_user and u['username'] == current_user['username'] %}
-            <span class="badge badge-you ms-1">You</span>
-          {% endif %}
+          <div class="d-flex align-items-center gap-2">
+            <img src="{{ avatar_url(u['discord_id'], u['avatar'], u.get('ordinal_avatar')) }}"
+                 class="ordinal-avatar-sm" alt="">
+            <strong>{{ u['username'] }}</strong>
+            {% if current_user and u['username'] == current_user['username'] %}
+              <span class="badge badge-you ms-1">You</span>
+            {% endif %}
+          </div>
         </td>
         <td class="text-center">
           <span class="points-big">{{ u['total_points'] }}</span>

@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 from database import get_db, init_db
-from api import fetch_and_update_matches, is_locked, time_until_lock
+from api import fetch_and_update_matches, send_match_reminders, is_locked, time_until_lock
 import psycopg2.extras
 import requests
 import os
@@ -55,6 +55,7 @@ fetch_and_update_matches()
 
 scheduler = BackgroundScheduler(daemon=True)
 scheduler.add_job(fetch_and_update_matches, "interval", minutes=5)
+scheduler.add_job(send_match_reminders, "interval", minutes=5)
 scheduler.start()
 
 # ── Template filters ──────────────────────────────────────────────────────────

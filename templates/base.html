@@ -118,14 +118,10 @@
       var avatar = item.avatar
         ? '<img src="/static/ordinals/' + item.avatar + '" class="ticker-avatar">'
         : '';
-      var pts = item.pts === 3
-        ? '<span class="ticker-pts exact">+3 pts</span>'
-        : '<span class="ticker-pts winner">+1 pt</span>';
-      html += '<span class="ticker-item">' + avatar + item.icon + ' <strong>' + item.text + '</strong> ' + pts + '</span>';
+      html += '<span class="ticker-item">' + avatar + ' <strong>' + item.text + '</strong></span>';
     });
     track.innerHTML = html;
     document.getElementById('ticker-wrap').style.display = 'block';
-    // Set animation duration based on number of items
     track.style.animationDuration = (data.items.length * 6) + 's';
   });
 </script>

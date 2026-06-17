@@ -420,6 +420,56 @@ def submit_prediction(match_id):
     flash("✅ Prediction saved!")
     return redirect(url_for("predict"))
 
+@app.route("/predict/save-all", methods=["POST"])
+def save_all_predictions():
+    if "user_id" not in session:
+        return redirect(url_for("index"))
+    conn = get_db()
+    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    user = db_fetchone(cur, "SELECT * FROM users WHERE id=%s", (session["user_id"],))
+    if not user or not user["x_verified"]:
+        cur.close()
+        conn.close()
+        return redirect(url_for("verify"))
+
+    saved  = 0
+    locked = 0
+    for key in request.form:
+        if not key.startswith("home_score_"):
+            continue
+        try:
+            match_id = int(key[len("home_score_"):])
+            home     = max(0, int(request.form.get(f"home_score_{match_id}", 0)))
+            away     = max(0, int(request.form.get(f"away_score_{match_id}", 0)))
+        except (ValueError, TypeError):
+            continue
+
+        match = db_fetchone(cur, "SELECT * FROM matches WHERE id=%s", (match_id,))
+        if not match or is_locked(match["kickoff_utc"]):
+            locked += 1
+            continue
+
+        cur.execute("""
+            INSERT INTO predictions (user_id, match_id, home_score, away_score)
+            VALUES (%s,%s,%s,%s)
+            ON CONFLICT(user_id, match_id) DO UPDATE SET
+                home_score    = EXCLUDED.home_score,
+                away_score    = EXCLUDED.away_score,
+                submitted_at  = CURRENT_TIMESTAMP,
+                points_earned = NULL
+        """, (session["user_id"], match_id, home, away))
+        saved += 1
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    if saved:
+        flash(f"✅ {saved} prediction{'s' if saved != 1 else ''} saved!")
+    if locked:
+        flash(f"⏰ {locked} match{'es' if locked != 1 else ''} already locked — skipped.")
+    return redirect(url_for("predict"))
+
 @app.route("/leaderboard")
 def leaderboard():
     conn  = get_db()

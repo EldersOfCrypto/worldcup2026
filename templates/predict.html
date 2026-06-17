@@ -2,11 +2,20 @@
 {% block title %}Predict — WC 2026{% endblock %}
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<form action="{{ url_for('save_all_predictions') }}" method="POST">
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
   <h2 class="page-title mb-0">⚽ Upcoming Matches</h2>
-  <a href="{{ url_for('leaderboard') }}" class="btn btn-sm btn-outline-gold">
-    <i class="fas fa-trophy me-1"></i>Leaderboard
-  </a>
+  <div class="d-flex align-items-center gap-3">
+    <a href="{{ url_for('leaderboard') }}" class="btn btn-sm btn-outline-gold">
+      <i class="fas fa-trophy me-1"></i>Leaderboard
+    </a>
+    {% if grouped %}
+    <button type="submit" class="btn btn-gold px-4">
+      <i class="fas fa-save me-2"></i>Save All Predictions
+    </button>
+    {% endif %}
+  </div>
 </div>
 
 {% if not grouped %}
@@ -66,24 +75,15 @@
               <small class="text-muted">No prediction</small>
             {% endif %}
           {% else %}
-            <form action="{{ url_for('submit_prediction', match_id=m.id) }}" method="POST" class="score-form">
-              <input type="number" name="home_score" class="score-input"
-                     value="{{ m.pred_home if m.pred_home is not none else '' }}"
-                     min="0" max="20" placeholder="0" required>
-              <span class="vs-sep">–</span>
-              <input type="number" name="away_score" class="score-input"
-                     value="{{ m.pred_away if m.pred_away is not none else '' }}"
-                     min="0" max="20" placeholder="0" required>
-              <button type="submit" class="btn btn-gold ms-3 px-3">
-                {% if m.pred_home is not none %}
-                  <i class="fas fa-sync-alt me-1"></i>Update
-                {% else %}
-                  <i class="fas fa-check me-1"></i>Save
-                {% endif %}
-              </button>
-            </form>
+            <input type="number" name="home_score_{{ m.id }}" class="score-input"
+                   value="{{ m.pred_home if m.pred_home is not none else '' }}"
+                   min="0" max="20" placeholder="0">
+            <span class="vs-sep">–</span>
+            <input type="number" name="away_score_{{ m.id }}" class="score-input"
+                   value="{{ m.pred_away if m.pred_away is not none else '' }}"
+                   min="0" max="20" placeholder="0">
             {% if m.pred_home is not none %}
-              <small class="saved-label">✓ Saved · Click to update</small>
+              <small class="saved-label ms-2">✓ Saved</small>
             {% endif %}
           {% endif %}
         </div>
@@ -101,5 +101,15 @@
   {% endfor %}
 </div>
 {% endfor %}
+
+{% if grouped %}
+<div class="text-center mb-5">
+  <button type="submit" class="btn btn-gold btn-lg px-5">
+    <i class="fas fa-save me-2"></i>Save All Predictions
+  </button>
+</div>
+{% endif %}
+
+</form>
 
 {% endblock %}

@@ -76,6 +76,11 @@
                 <span class="pred-score">{{ m.pred_away }}</span>
               </div>
               <small class="text-muted">Your prediction</small>
+              <a href="https://twitter.com/intent/tweet?text={{ ('I predicted ' ~ m.home_team ~ ' ' ~ m.pred_home ~ '–' ~ m.pred_away ~ ' ' ~ m.away_team ~ ' in the %23WC2026 Predictor by @CryptoElders 🏆 Free to play → https://web-production-0f407c.up.railway.app') | urlencode }}"
+                 target="_blank" class="btn-x-share mt-1">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                Share
+              </a>
             {% else %}
               <div class="no-pred">—</div>
               <small class="text-muted">No prediction</small>
@@ -84,11 +89,11 @@
             <div class="score-form">
               <input type="number" name="home_score_{{ m.id }}" class="score-input"
                      value="{{ m.pred_home if m.pred_home is not none else '' }}"
-                     min="0" max="20" placeholder="0">
+                     min="0" max="20" placeholder="0" inputmode="numeric" pattern="[0-9]*">
               <span class="vs-sep">–</span>
               <input type="number" name="away_score_{{ m.id }}" class="score-input"
                      value="{{ m.pred_away if m.pred_away is not none else '' }}"
-                     min="0" max="20" placeholder="0">
+                     min="0" max="20" placeholder="0" inputmode="numeric" pattern="[0-9]*">
             </div>
             {% if m.pred_home is not none %}
               <small class="saved-label">✓ Saved</small>

@@ -27,6 +27,14 @@
     <span class="prize-free">🎉 FREE TO PLAY</span>
   </div>
 
+  {% if next_match %}
+  <div class="next-match-countdown mb-4">
+    <div class="next-match-label">⚽ Next match</div>
+    <div class="next-match-teams">{{ next_match.home_team }} vs {{ next_match.away_team }}</div>
+    <div class="next-match-timer" id="next-match-timer">–</div>
+  </div>
+  {% endif %}
+
   <div class="login-card mx-auto mt-4">
     <p class="login-welcome mb-1">Welcome, future champion</p>
     <p class="text-muted mb-4" style="font-size:0.85rem">
@@ -69,4 +77,23 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+{% if next_match %}
+<script>
+  var kickoff = new Date("{{ next_match.kickoff_utc.isoformat() }}");
+  function updateTimer() {
+    var diff = kickoff - new Date();
+    if (diff <= 0) { document.getElementById('next-match-timer').textContent = 'Starting now!'; return; }
+    var h = Math.floor(diff / 3600000);
+    var m = Math.floor((diff % 3600000) / 60000);
+    var s = Math.floor((diff % 60000) / 1000);
+    document.getElementById('next-match-timer').textContent =
+      (h > 0 ? h + 'h ' : '') + m + 'm ' + s + 's';
+  }
+  updateTimer();
+  setInterval(updateTimer, 1000);
+</script>
+{% endif %}
 {% endblock %}

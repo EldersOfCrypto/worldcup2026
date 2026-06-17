@@ -402,7 +402,15 @@ def verify():
 def index():
     if "user_id" in session:
         return redirect(url_for("predict"))
-    return render_template("index.html")
+    conn = get_db()
+    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    next_match = db_fetchone(cur, """
+        SELECT home_team, away_team, kickoff_utc FROM matches
+        WHERE status IN ('TIMED','SCHEDULED')
+        ORDER BY kickoff_utc ASC LIMIT 1
+    """)
+    cur.close(); conn.close()
+    return render_template("index.html", next_match=next_match)
 
 @app.route("/predict")
 def predict():

@@ -69,7 +69,7 @@
         <td>{% if u['x_verified'] %}<span class="badge badge-winner px-2">✓ Yes</span>{% else %}<span class="badge badge-zero px-2">No</span>{% endif %}</td>
         <td>{{ u['total_preds'] }}</td>
         <td class="points-big">{{ u['total_points'] }}</td>
-        <td class="text-muted small">{{ u['created_at'][:10] }}</td>
+        <td class="text-muted small">{{ u['created_at'].strftime('%Y-%m-%d') }}</td>
       </tr>
       {% endfor %}
     </tbody>

@@ -82,7 +82,7 @@
 {% block scripts %}
 {% if next_match %}
 <script>
-  var kickoff = new Date("{{ next_match.kickoff_utc.isoformat() }}");
+  var kickoff = new Date("{{ next_match.kickoff_utc }}");
   function updateTimer() {
     var diff = kickoff - new Date();
     if (diff <= 0) { document.getElementById('next-match-timer').textContent = 'Starting now!'; return; }

@@ -768,12 +768,13 @@ def admin_set_score():
     cur  = conn.cursor()
     cur.execute("UPDATE matches SET home_score=%s, away_score=%s, status='FINISHED' WHERE id=%s",
                 (home, away, match_id))
+    cur.execute("UPDATE predictions SET points_earned=NULL WHERE match_id=%s", (match_id,))
     conn.commit()
     cur.close()
     from api import _calculate_points
     _calculate_points(conn)
     conn.close()
-    flash(f"✅ Match {match_id} set to {home}–{away} and graded.")
+    flash(f"✅ Match {match_id} set to {home}–{away}, points reset and re-graded.")
     return redirect(url_for("admin"))
 
 if __name__ == "__main__":
